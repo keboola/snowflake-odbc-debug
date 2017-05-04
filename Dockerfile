@@ -1,0 +1,32 @@
+FROM php:7.1.4
+MAINTAINER Martin Halamicek <martin@keboola.com>
+ENV DEBIAN_FRONTEND noninteractive
+
+RUN apt-get update \
+  && apt-get install unzip git unixODBC-dev libpq-dev libnss3-tools -y
+
+RUN docker-php-ext-install pdo_pgsql pdo_mysql
+
+
+# https://github.com/docker-library/php/issues/103
+RUN set -x \
+    && docker-php-source extract \
+    && cd /usr/src/php/ext/odbc \
+    && phpize \
+    && sed -ri 's@^ *test +"\$PHP_.*" *= *"no" *&& *PHP_.*=yes *$@#&@g' configure \
+    && ./configure --with-unixODBC=shared,/usr \
+    && docker-php-ext-install odbc \
+    && docker-php-source delete
+
+## install snowflake drivers
+ADD ./snowflake-odbc.deb /tmp/snowflake-odbc.deb
+WORKDIR /tmp
+RUN dpkg -i snowflake-odbc.deb
+RUN apt-get install -f -y
+
+# snowflake - charset settings
+ENV LANG en_US.UTF-8
+
+ADD ./docker/snowflake/simba.snowflake.ini /usr/lib/snowflake/odbc/lib/simba.snowflake.ini
+
+

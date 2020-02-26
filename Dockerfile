@@ -1,32 +1,52 @@
-FROM php:7.1.4
-MAINTAINER Martin Halamicek <martin@keboola.com>
+FROM php:7.4
+ARG SNOWFLAKE_ODBC_VERSION=2.19.16
+ARG SNOWFLAKE_GPG_KEY=EC218558EABB25A1
+
 ENV DEBIAN_FRONTEND noninteractive
+ENV LANGUAGE=en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
 
-RUN apt-get update \
-  && apt-get install unzip git unixODBC-dev libpq-dev libnss3-tools -y
+RUN apt-get update && apt-get install -y --no-install-recommends \
+         git \
+         locales \
+         unzip \
+         unixodbc \
+         unixodbc-dev \
+         libpq-dev \
+         gpg \
+         debsig-verify \
+         dirmngr \
+         gpg-agent \
+ 	&& rm -r /var/lib/apt/lists/* \
+ 	&& sed -i 's/^# *\(en_US.UTF-8\)/\1/' /etc/locale.gen \
+ 	&& locale-gen
+ # Snowflake ODBC
+ # https://github.com/docker-library/php/issues/103#issuecomment-353674490
+ RUN set -ex; \
+     docker-php-source extract; \
+     { \
+         echo '# https://github.com/docker-library/php/issues/103#issuecomment-353674490'; \
+         echo 'AC_DEFUN([PHP_ALWAYS_SHARED],[])dnl'; \
+         echo; \
+         cat /usr/src/php/ext/odbc/config.m4; \
+     } > temp.m4; \
+     mv temp.m4 /usr/src/php/ext/odbc/config.m4; \
+     docker-php-ext-configure odbc --with-unixODBC=shared,/usr; \
+     docker-php-ext-install odbc; \
+     docker-php-source delete
 
-RUN docker-php-ext-install pdo_pgsql pdo_mysql
+ ## install snowflake drivers
+ COPY ./docker/snowflake/generic.pol /etc/debsig/policies/$SNOWFLAKE_GPG_KEY/generic.pol
+ ADD https://sfc-repo.snowflakecomputing.com/odbc/linux/$SNOWFLAKE_ODBC_VERSION/snowflake-odbc-$SNOWFLAKE_ODBC_VERSION.x86_64.deb /tmp/snowflake-odbc.deb
+ COPY ./docker/snowflake/simba.snowflake.ini /usr/lib/snowflake/odbc/lib/simba.snowflake.ini
 
-
-# https://github.com/docker-library/php/issues/103
-RUN set -x \
-    && docker-php-source extract \
-    && cd /usr/src/php/ext/odbc \
-    && phpize \
-    && sed -ri 's@^ *test +"\$PHP_.*" *= *"no" *&& *PHP_.*=yes *$@#&@g' configure \
-    && ./configure --with-unixODBC=shared,/usr \
-    && docker-php-ext-install odbc \
-    && docker-php-source delete
-
-## install snowflake drivers
-ADD ./snowflake-odbc.deb /tmp/snowflake-odbc.deb
-WORKDIR /tmp
-RUN dpkg -i snowflake-odbc.deb
-RUN apt-get install -f -y
-
-# snowflake - charset settings
-ENV LANG en_US.UTF-8
-
-ADD ./docker/snowflake/simba.snowflake.ini /usr/lib/snowflake/odbc/lib/simba.snowflake.ini
-
-
+ RUN mkdir -p ~/.gnupg \
+     && chmod 700 ~/.gnupg \
+     && echo "disable-ipv6" >> ~/.gnupg/dirmngr.conf \
+     && mkdir -p /usr/share/debsig/keyrings/$SNOWFLAKE_GPG_KEY \
+     && gpg --keyserver hkp://keyserver.ubuntu.com --recv-keys $SNOWFLAKE_GPG_KEY \
+     && gpg --export $SNOWFLAKE_GPG_KEY > /usr/share/debsig/keyrings/$SNOWFLAKE_GPG_KEY/debsig.gpg \
+     && debsig-verify /tmp/snowflake-odbc.deb \
+     && gpg --batch --delete-key --yes $SNOWFLAKE_GPG_KEY \
+     && dpkg -i /tmp/snowflake-odbc.deb

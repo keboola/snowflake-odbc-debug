@@ -2,14 +2,12 @@ version: "2"
 
 services:
 
-  tests:
+  dev:
     build: .
     volumes:
       - .:/code
     working_dir: /code
     command: php test.php
-    tty: true
-    stdin_open: true
     environment:
       - SNOWFLAKE_HOST
       - SNOWFLAKE_PORT
@@ -17,57 +15,3 @@ services:
       - SNOWFLAKE_PASSWORD
       - SNOWFLAKE_DATABASE
       - SNOWFLAKE_WAREHOUSE
-      - SNOWFLAKE_2_HOST
-      - SNOWFLAKE_2_PORT
-      - SNOWFLAKE_2_USER
-      - SNOWFLAKE_2_PASSWORD
-      - SNOWFLAKE_2_DATABASE
-      - SNOWFLAKE_2_WAREHOUSE
-
-  tests-php7-0:
-      build:
-        context: .
-        dockerfile: Dockerfile-php-7-0
-      volumes:
-        - .:/code
-      working_dir: /code
-      command: php test.php
-      tty: true
-      stdin_open: true
-      environment:
-        - SNOWFLAKE_HOST
-        - SNOWFLAKE_PORT
-        - SNOWFLAKE_USER
-        - SNOWFLAKE_PASSWORD
-        - SNOWFLAKE_DATABASE
-        - SNOWFLAKE_WAREHOUSE
-        - SNOWFLAKE_2_HOST
-        - SNOWFLAKE_2_PORT
-        - SNOWFLAKE_2_USER
-        - SNOWFLAKE_2_PASSWORD
-        - SNOWFLAKE_2_DATABASE
-        - SNOWFLAKE_2_WAREHOUSE
-
-  tests-php5-6:
-        build:
-          context: .
-          dockerfile: Dockerfile-php-5-6
-        volumes:
-          - .:/code
-        working_dir: /code
-        command: php test.php
-        tty: true
-        stdin_open: true
-        environment:
-          - SNOWFLAKE_HOST
-          - SNOWFLAKE_PORT
-          - SNOWFLAKE_USER
-          - SNOWFLAKE_PASSWORD
-          - SNOWFLAKE_DATABASE
-          - SNOWFLAKE_WAREHOUSE
-          - SNOWFLAKE_2_HOST
-          - SNOWFLAKE_2_PORT
-          - SNOWFLAKE_2_USER
-          - SNOWFLAKE_2_PASSWORD
-          - SNOWFLAKE_2_DATABASE
-          - SNOWFLAKE_2_WAREHOUSE

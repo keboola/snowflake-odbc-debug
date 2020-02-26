@@ -5,9 +5,17 @@
  * Date: 04/05/17
  * Time: 10:37
  */
-set_error_handler( function ($errno, $errstr, $errfile, $errline, array $errcontext) {
-    throw new \ErrorException($errstr, 0, $errno, $errfile, $errline);
-});
+set_error_handler(
+    function ($errno, $errstr, $errfile, $errline, array $errcontext) {
+        throw new \ErrorException($errstr, 0, $errno, $errfile, $errline);
+    }
+);
+
+function quoteIdentifier($value)
+{
+    $q = '"';
+    return ($q . str_replace("$q", "$q$q", $value) . $q);
+}
 
 function createConnection(array $options)
 {
@@ -27,81 +35,34 @@ function createConnection(array $options)
     return odbc_connect($dsn, $options['user'], $options['password']);
 }
 
-function quoteIdentifier($value)
-{
-    $q = '"';
-    return ($q . str_replace("$q", "$q$q", $value) . $q);
+$db = createConnection(
+    [
+        'host' => getenv('SNOWFLAKE_HOST'),
+        'port' => getenv('SNOWFLAKE_PORT'),
+        'database' => getenv('SNOWFLAKE_DATABASE'),
+        'warehouse' => getenv('SNOWFLAKE_WAREHOUSE'),
+        'user' => getenv('SNOWFLAKE_USER'),
+        'password' => getenv('SNOWFLAKE_PASSWORD'),
+    ]
+);
+
+function db_exec($db, $query) {
+    echo 'odbc_exec(' . $query . ')' . PHP_EOL . PHP_EOL;
+    odbc_exec($db, $query);
 }
 
-function query($odbc, $sql, array $bind = [])
-{
-    $stmt = odbc_prepare($odbc, $sql);
-    odbc_execute($stmt, $bind);
-    odbc_free_result($stmt);
+function db_prepare($db, $query) {
+    echo 'odbc_prepare(' . $query . ')' . PHP_EOL . PHP_EOL;
+    odbc_prepare($db, $query);
 }
 
-function fetchAll($odbc, $sql, $bind = [])
-{
-    $stmt = odbc_prepare($odbc, $sql);
-    odbc_execute($stmt, $bind);
-    $rows = [];
-    while ($row = odbc_fetch_array($stmt)) {
-        $rows[] = $row;
-    }
-    odbc_free_result($stmt);
-    return $rows;
-}
+db_exec($db, 'CREATE SCHEMA IF NOT EXISTS "TF-KBC-227"');
 
+db_exec($db, 'DROP TABLE IF EXISTS "TF-KBC-227"."TEST_TABLE"');
 
-$connection = createConnection([
-    'host' => getenv('SNOWFLAKE_HOST'),
-    'port' => getenv('SNOWFLAKE_PORT'),
-    'database' => getenv('SNOWFLAKE_DATABASE'),
-    'warehouse' => getenv('SNOWFLAKE_WAREHOUSE'),
-    'user' => getenv('SNOWFLAKE_USER'),
-    'password' => getenv('SNOWFLAKE_PASSWORD'),
-]);
+db_prepare($db, 'CREATE TABLE "TF-KBC-227"."TEST_TABLE" (col1 varchar, col2 varchar)');
 
-$sameConnection = createConnection([
-    'host' => getenv('SNOWFLAKE_HOST'),
-    'port' => getenv('SNOWFLAKE_PORT'),
-    'database' => getenv('SNOWFLAKE_DATABASE'),
-    'warehouse' => getenv('SNOWFLAKE_WAREHOUSE'),
-    'user' => getenv('SNOWFLAKE_USER'),
-    'password' => getenv('SNOWFLAKE_PASSWORD'),
-]);
+echo 'expectation: odbc_prepare only prepared the query it did not execut, so preparing again should not fail' .
+    PHP_EOL . PHP_EOL;
 
-$anotherConnection = createConnection([
-    'host' => getenv('SNOWFLAKE_2_HOST'),
-    'port' => getenv('SNOWFLAKE_2_PORT'),
-    'database' => getenv('SNOWFLAKE_2_DATABASE'),
-    'warehouse' => getenv('SNOWFLAKE_2_WAREHOUSE'),
-    'user' => getenv('SNOWFLAKE_2_USER'),
-    'password' => getenv('SNOWFLAKE_2_PASSWORD'),
-]);
-
-query($connection, 'DROP SCHEMA IF EXISTS test CASCADE');
-query($connection, 'CREATE SCHEMA test');
-query($connection, 'CREATE TABLE test.test (name VARCHAR)');
-query($connection, "INSERT INTO test.test VALUES ('abc'), ('def'), ('žížala')");
-
-echo "\nFetch all using first connection: \n";
-var_dump(fetchAll($connection, 'SELECT * FROM test.test'));
-
-echo "\nFetch all using second connection: \n";
-var_dump(fetchAll($sameConnection, 'SELECT * FROM test.test'));
-
-echo "\nClosing first connection \n";
-odbc_close($connection);
-
-try {
-    echo "\nFetch all using second connection again \n";
-    var_dump(fetchAll($sameConnection, 'SELECT * FROM test.test'));
-} catch (\ErrorException $e) {
-    echo "Error: {$e->getMessage()}\n";
-}
-
-echo "\nFetch all using another connection \n";
-var_dump(fetchAll($anotherConnection, 'SHOW TABLES'));
-
-
+db_prepare($db, 'CREATE TABLE "TF-KBC-227"."TEST_TABLE" (col1 varchar, col2 varchar)');

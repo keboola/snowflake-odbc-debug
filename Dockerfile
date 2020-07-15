@@ -1,5 +1,5 @@
 FROM php:7.4
-ARG SNOWFLAKE_ODBC_VERSION=2.19.16
+ARG SNOWFLAKE_ODBC_VERSION=2.21.6
 ARG SNOWFLAKE_GPG_KEY=EC218558EABB25A1
 
 ENV DEBIAN_FRONTEND noninteractive
@@ -38,7 +38,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
  ## install snowflake drivers
  COPY ./docker/snowflake/generic.pol /etc/debsig/policies/$SNOWFLAKE_GPG_KEY/generic.pol
- ADD https://sfc-repo.snowflakecomputing.com/odbc/linux/$SNOWFLAKE_ODBC_VERSION/snowflake-odbc-$SNOWFLAKE_ODBC_VERSION.x86_64.deb /tmp/snowflake-odbc.deb
+ADD https://sfc-repo.azure.snowflakecomputing.com/odbc/linux/$SNOWFLAKE_ODBC_VERSION/snowflake-odbc-$SNOWFLAKE_ODBC_VERSION.x86_64.deb /tmp/snowflake-odbc.deb
  COPY ./docker/snowflake/simba.snowflake.ini /usr/lib/snowflake/odbc/lib/simba.snowflake.ini
 
  RUN mkdir -p ~/.gnupg \
